@@ -15,15 +15,15 @@ from aiogram.utils import executor
 from config import BOT_TOKEN, PROJECT_DIR
 from worker import Worker, get_image_path
 
-from dash import Dash
-from dashboard import serve_layout
+# from dash import Dash
+# from dashboard import serve_layout
 import datetime
 
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher(bot)
 worker = Worker()
-app = Dash(__name__)
-app.layout = serve_layout
+# app = Dash(__name__)
+# app.layout = serve_layout
 data = pd.read_csv('dashboard_data.csv')
 
 
@@ -73,8 +73,7 @@ async def handle_docs_photo(message: types.Message):
     markup = InlineKeyboardMarkup()
     markup.row_width = 1
     markup.add(
-        InlineKeyboardButton('Обработать чуть-чуть', callback_data='do|merged'),
-        InlineKeyboardButton('Обработать сильно', callback_data='do|cartoon'),
+        InlineKeyboardButton('Обработать фото', callback_data='do|merged'),
     )
 
     for face in faces:
@@ -107,6 +106,6 @@ async def inline_go_disney_answer_callback_handler1(query: types.CallbackQuery):
     #                                'Поддежрать проект можно здесь - https://www.tinkoff.ru/cf/50xgBwSX8wN')
 
 if __name__ == '__main__':
-    threading.Thread(target=app.run_server, kwargs={'host': '0.0.0.0', 'port': 1919}, daemon=True).start()
+    # threading.Thread(target=app.run_server, kwargs={'host': '0.0.0.0', 'port': 1919}, daemon=True).start()
     executor.start_polling(dp)
 

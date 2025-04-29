@@ -10,21 +10,37 @@ from albumentations.pytorch.transforms import ToTensor
 from config import PROJECT_DIR, device, models_path
 from face_aligner import align_image
 from face_aligner import get_detector
+from torchvision import transforms
+from pix2pix_training import UNetGenerator
+import torch.nn as nn
+from PIL import Image
 
 
 def get_image_path(image_name):
     return os.path.join(PROJECT_DIR, 'photos', image_name)
 
 
+def load_generator(ckpt_path: str, device="cuda") -> nn.Module:
+    ckpt = torch.load(ckpt_path, map_location="cpu")
+    netG = UNetGenerator().to(device)
+    state_dict = ckpt.get("G", ckpt)
+    netG.load_state_dict(state_dict, strict=False)
+    netG.eval()
+    return netG
+    
+
 class Worker:
     def __init__(self):
         self.landmarks_detector = get_detector()
-        self.model = {'merged': torch.jit.load(models_path['merged'], map_location=device),
-                      'cartoon': torch.jit.load(models_path['cartoon'], map_location=device)}
-        self.transforms = A.Compose([
-              A.Resize(512, 512),
-              ToTensor()
-          ])
+        self.model = {'merged': load_generator(models_path['merged'], device),
+                      # 'cartoon': torch.jit.load(models_path['cartoon'], map_location=device)
+                     }
+        self.transforms = transforms.Compose([
+            transforms.Resize((1024, 1024), Image.BICUBIC),
+            # transforms.RandomHorizontalFlip(),
+            transforms.ToTensor(),
+            transforms.Normalize((0.5,)*3, (0.5,)*3),
+        ])
 
         print('Init was succesfully completed')
 
@@ -39,8 +55,13 @@ class Worker:
         return image
 
     def predict(self, image: np.array, mode: str):
-        image = self.transforms(image=image)['image']
-        gen = self.model[mode](image.reshape(1, 3, 512, 512))
-        gen = torch.moveaxis(gen, 1, -1).detach().cpu().numpy().squeeze() * 255
+        print(image.shape)
+        # image = np.moveaxis(image, -1, 0)
+        # print(image.shape)
+        image = self.transforms(Image.fromarray(image)).unsqueeze(0).to(device)
+        gen = self.model[mode](image)
+        gen = (gen.squeeze(0).cpu() + 1) / 2  # [0,1]
+        # to uint8
+        gen = (gen.permute(1,2,0).detach().numpy()*255).clip(0,255).astype(np.uint8)
         gen = gen.astype(np.uint8)
         return gen
